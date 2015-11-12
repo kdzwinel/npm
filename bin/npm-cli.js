@@ -28,6 +28,10 @@ var path = require("path")
   , shorthands = configDefs.shorthands
   , types = configDefs.types
   , nopt = require("nopt")
+  , profiler = require('v8-profiler')
+  , fs = require('fs')
+
+  profiler.startProfiling('', true)
 
 // if npm is called as "npmg" or "npm_g", then
 // run in global mode.
@@ -69,7 +73,14 @@ if (conf.usage && npm.command !== "help") {
 conf._exit = true
 npm.load(conf, function (er) {
   if (er) return errorHandler(er)
-  npm.commands[npm.command](npm.argv, errorHandler)
+  npm.commands[npm.command](npm.argv, function() {
+      var self = this;
+      var profile = profiler.stopProfiling('');
+      profile.export(function(err, res) {
+          fs.writeFileSync(path.join(process.cwd(), 'tmp.cpuprofile'), res);
+          errorHandler.apply(self, arguments);
+     });
+    })
 })
 
 })()
